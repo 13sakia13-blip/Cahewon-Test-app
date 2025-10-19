@@ -24,11 +24,6 @@ const EditQuestionModal: React.FC<{ question: Question; onClose: () => void; onS
 
     const handleSave = async () => {
         let updatedData = { ...formData };
-        
-        if (question.type === QuestionType.MultipleChoice && updatedData.options) {
-            updatedData.options = updatedData.options.filter(opt => opt && opt.trim() !== '');
-        }
-
         if (imageFile) {
             setIsUploading(true);
             try {
@@ -60,26 +55,10 @@ const EditQuestionModal: React.FC<{ question: Question; onClose: () => void; onS
                         {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                 </div>
-                {formData.type === QuestionType.MultipleChoice && (
+                {formData.type === 'multiple_choice' && (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">오답 선택지 (4개)</label>
-                        {Array.from({ length: 4 }).map((_, index) => (
-                            <input
-                                key={index}
-                                type="text"
-                                placeholder={`오답 ${index + 1}`}
-                                value={formData.options?.[index] || ''}
-                                onChange={(e) => {
-                                    const newOptions = [...(formData.options || [])];
-                                    while (newOptions.length <= index) {
-                                        newOptions.push('');
-                                    }
-                                    newOptions[index] = e.target.value;
-                                    setFormData(prev => ({ ...prev, options: newOptions }));
-                                }}
-                                className="w-full p-2 border rounded mt-2"
-                            />
-                        ))}
+                        <label className="block text-sm font-medium text-slate-700 mb-1">선택지 (쉼표로 구분)</label>
+                        <input type="text" name="options" value={formData.options?.join(',')} onChange={(e) => setFormData(prev => ({...prev, options: e.target.value.split(',').map(s => s.trim())}))} className="w-full p-2 border rounded"/>
                     </div>
                 )}
                 <div>
@@ -189,24 +168,8 @@ const AddQuestionModal: React.FC<{ onClose: () => void; onSave: () => void; cate
                 </div>
                 {formData.type === QuestionType.MultipleChoice && (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">오답 선택지 (4개)</label>
-                        {Array.from({ length: 4 }).map((_, index) => (
-                             <input
-                                key={index}
-                                type="text"
-                                placeholder={`오답 ${index + 1}`}
-                                value={formData.options.split(',')[index] || ''}
-                                onChange={(e) => {
-                                    const currentOptions = formData.options.split(',');
-                                    while (currentOptions.length <= index) {
-                                        currentOptions.push('');
-                                    }
-                                    currentOptions[index] = e.target.value;
-                                    setFormData(prev => ({...prev, options: currentOptions.join(',')}));
-                                }}
-                                className="w-full p-2 border rounded mt-2"
-                            />
-                        ))}
+                        <label className="block text-sm font-medium text-slate-700 mb-1">선택지 (쉼표로 구분)</label>
+                        <input type="text" name="options" value={formData.options} onChange={handleChange} className="w-full p-2 border rounded"/>
                     </div>
                 )}
                 <div>
@@ -229,7 +192,7 @@ const BulkUploadModal: React.FC<{ onClose: () => void; onUpload: () => void; }> 
     const [csvData, setCsvData] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
-    const sampleCSV = `category_name,type,question_text,correct_answer,incorrect_option1,incorrect_option2,incorrect_option3,incorrect_option4\nScience,multiple_choice,"What is the chemical symbol for water?","H2O","O2","CO2","H2","NaCl"\nHistory,short_answer,"In what year did the Titanic sink?","1912",,,,`;
+    const sampleCSV = `category_name,type,question_text,correct_answer,option1,option2,option3,option4\nScience,multiple_choice,"What is the chemical symbol for water?","H2O","O2","CO2","H2","NaCl"\nHistory,short_answer,"In what year did the Titanic sink?","1912",,,,`;
 
     const handleUpload = async () => {
         setIsUploading(true);
@@ -269,8 +232,8 @@ const BulkUploadModal: React.FC<{ onClose: () => void; onUpload: () => void; }> 
         <Modal isOpen={true} onClose={onClose} title="질문 대량 업로드">
             <div className="space-y-4">
                 <p>아래에 CSV 형식으로 데이터를 붙여넣으세요. 첫 줄은 반드시 헤더여야 합니다.</p>
-                <p className="font-mono text-sm bg-slate-100 p-2 rounded">category_name,type,question_text,correct_answer,incorrect_option1,incorrect_option2,incorrect_option3,incorrect_option4</p>
-                <p className="text-xs text-slate-500">참고: `type`은 `short_answer` 또는 `multiple_choice`여야 합니다. 객관식 문제의 경우 4개의 오답 선택지를 제공해야 합니다. `short_answer`의 경우 선택지 열을 비워두세요.</p>
+                <p className="font-mono text-sm bg-slate-100 p-2 rounded">category_name,type,question_text,correct_answer,option1,option2,option3,option4</p>
+                <p className="text-xs text-slate-500">참고: `type`은 `short_answer` 또는 `multiple_choice`여야 합니다. `short_answer`의 경우 선택지 열을 비워두세요.</p>
                 <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(sampleCSV)}`} download="sample.csv" className="text-primary-600 hover:underline">샘플 CSV 다운로드</a>
                 <textarea value={csvData} onChange={(e) => setCsvData(e.target.value)} rows={10} className="w-full p-2 border rounded font-mono text-sm" placeholder="이곳에 CSV 데이터를 붙여넣으세요..."></textarea>
                 <Button onClick={handleUpload} disabled={isUploading}>{isUploading ? '업로드 중...' : '업로드'}</Button>
