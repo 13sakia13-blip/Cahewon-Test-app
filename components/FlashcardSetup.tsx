@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Category, Question } from '../types';
-import { getPopulatedCategories, getShortAnswerQuestions } from '../services/api';
+import { getCategories, getShortAnswerQuestions } from '../services/api';
 import Card from './ui/Card';
 import Button from './ui/Button';
 import Spinner from './ui/Spinner';
@@ -21,7 +21,7 @@ const FlashcardSetup: React.FC<FlashcardSetupProps> = ({ onStart }) => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const data = await getPopulatedCategories();
+        const data = await getCategories({ populatedOnly: true });
         // Filter for categories that have short answer questions if possible
         // For now, we allow selection, and error handle on start
         setCategories(data);

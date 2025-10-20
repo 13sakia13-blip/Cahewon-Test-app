@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Category } from '../types';
-import { getPopulatedCategories, getQuestions } from '../services/api';
+import { getCategories, getQuestions } from '../services/api';
 import Card from './ui/Card';
 import Button from './ui/Button';
 import Spinner from './ui/Spinner';
@@ -21,7 +21,7 @@ const QuizSetup: React.FC<QuizSetupProps> = ({ onStartQuiz }) => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const data = await getPopulatedCategories();
+        const data = await getCategories({ populatedOnly: true });
         setCategories(data);
         if (data.length > 0) {
           setSelectedCategory(data[0].id);
