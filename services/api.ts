@@ -1,9 +1,30 @@
 import { supabase } from './supabase';
-import { Category, Question, QuestionType } from '../types';
+import { Category, Question, QuestionType, LearningLog } from '../types';
 
 export const DUMMY_USER_ID = '00000000-0000-0000-0000-000000000000';
 
-export const getCategories = async (): Promise<Category[]> => {
+export const getCategories = async (options?: { populatedOnly: boolean }): Promise<Category[]> => {
+  if (options?.populatedOnly) {
+    const { data: questionData, error: questionError } = await supabase
+      .from('questions')
+      .select('category_id');
+    
+    if (questionError) throw questionError;
+    if (!questionData || questionData.length === 0) {
+      return [];
+    }
+    const categoryIds = [...new Set(questionData.map(q => q.category_id))];
+
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .in('id', categoryIds)
+      .order('name');
+    
+    if (error) throw error;
+    return data || [];
+  }
+
   const { data, error } = await supabase.from('categories').select('*').order('name');
   if (error) throw error;
   return data || [];
@@ -67,6 +88,7 @@ export const saveQuizResult = async (questionId: string, isCorrect: boolean): Pr
             user_id: DUMMY_USER_ID,
             question_id: questionId,
             is_correct: isCorrect,
+            answered_at: new Date().toISOString(),
         },
         { onConflict: 'user_id,question_id' }
     );
@@ -135,3 +157,60 @@ export const findOrCreateCategory = async (name: string): Promise<string> => {
 
     return newCategory!.id;
 }
+
+export const getTodaysLearningData = async (): Promise<{ logs: LearningLog[], questions: Record<string, Question>, categories: Record<string, Category>}> => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const { data: logs, error: logError } = await supabase
+        .from('learning_log')
+        .select('*')
+        .eq('user_id', DUMMY_USER_ID)
+        .gte('answered_at', today.toISOString())
+        .lt('answered_at', tomorrow.toISOString())
+        .order('answered_at', { ascending: false });
+
+    if (logError) throw logError;
+    if (!logs || logs.length === 0) {
+        return { logs: [], questions: {}, categories: {} };
+    }
+
+    const questionIds = [...new Set(logs.map(log => log.question_id))];
+
+    const { data: questionsData, error: questionsError } = await supabase
+        .from('questions')
+        .select('*')
+        .in('id', questionIds);
+    
+    if (questionsError) throw questionsError;
+
+    const questionsMap: Record<string, Question> = {};
+    questionsData?.forEach(q => {
+        questionsMap[q.id] = q;
+    });
+
+    const categoryIds = [...new Set(questionsData?.map(q => q.category_id))];
+    if (categoryIds.length === 0) {
+        return { logs, questions: questionsMap, categories: {} };
+    }
+
+    const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .in('id', categoryIds);
+
+    if (categoriesError) throw categoriesError;
+
+    const categoriesMap: Record<string, Category> = {};
+    categoriesData?.forEach(c => {
+        categoriesMap[c.id] = c;
+    });
+    
+    return {
+        logs,
+        questions: questionsMap,
+        categories: categoriesMap
+    };
+};
