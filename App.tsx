@@ -9,6 +9,7 @@ import ManageContent from './components/ManageContent';
 import Header from './components/Header';
 import FlashcardSetup from './components/FlashcardSetup';
 import FlashcardView from './components/FlashcardView';
+import TodaySummary from './components/TodaySummary';
 import { QuizResult, Question } from './types';
 
 // Mock react-router-dom functionality for hash-based navigation
@@ -56,6 +57,8 @@ const AppContent: React.FC = () => {
                 return <IncorrectNotes onStartQuiz={handleStartQuiz} />;
             case 'manage':
                 return <ManageContent />;
+            case 'summary':
+                return <TodaySummary navigate={navigateTo} />;
             default:
                 return <Home navigate={navigateTo} />;
         }
@@ -73,7 +76,7 @@ const AppContent: React.FC = () => {
 
 
     return (
-        <div className="bg-slate-50 min-h-screen text-slate-800">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen text-slate-800">
             <Header navigate={navigateTo} />
             <main className="container mx-auto p-4 md:p-8">
                 {renderView()}
