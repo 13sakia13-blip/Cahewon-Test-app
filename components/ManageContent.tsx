@@ -7,7 +7,10 @@ import Modal from './ui/Modal';
 
 // Edit Question Modal
 const EditQuestionModal: React.FC<{ question: Question; onClose: () => void; onSave: () => void; categories: Category[] }> = ({ question, onClose, onSave, categories }) => {
-    const [formData, setFormData] = useState<Partial<Question>>(question);
+    const [formData, setFormData] = useState({
+        ...question,
+        options: question.options?.join(', ') || ''
+    });
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -23,7 +26,15 @@ const EditQuestionModal: React.FC<{ question: Question; onClose: () => void; onS
     };
 
     const handleSave = async () => {
-        let updatedData = { ...formData };
+        const { options, ...rest } = formData;
+        let updatedData: Partial<Question> = rest;
+
+        if (formData.type === QuestionType.MultipleChoice) {
+            updatedData.options = options.split(',').map(s => s.trim()).filter(Boolean);
+        } else {
+            updatedData.options = [];
+        }
+
         if (imageFile) {
             setIsUploading(true);
             try {
@@ -55,10 +66,17 @@ const EditQuestionModal: React.FC<{ question: Question; onClose: () => void; onS
                         {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                     </select>
                 </div>
-                {formData.type === 'multiple_choice' && (
+                {formData.type === QuestionType.MultipleChoice && (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">선택지 (쉼표로 구분)</label>
-                        <input type="text" name="options" value={formData.options?.join(',')} onChange={(e) => setFormData(prev => ({...prev, options: e.target.value.split(',').map(s => s.trim())}))} className="w-full p-2 border rounded"/>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">오답 선택지 (쉼표로 구분)</label>
+                        <input
+                            type="text"
+                            name="options"
+                            placeholder="예: 오답1, 오답2, 오답3"
+                            value={formData.options}
+                            onChange={handleChange}
+                            className="w-full p-2 border rounded"
+                        />
                     </div>
                 )}
                 <div>
@@ -168,8 +186,15 @@ const AddQuestionModal: React.FC<{ onClose: () => void; onSave: () => void; cate
                 </div>
                 {formData.type === QuestionType.MultipleChoice && (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">선택지 (쉼표로 구분)</label>
-                        <input type="text" name="options" value={formData.options} onChange={handleChange} className="w-full p-2 border rounded"/>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">오답 선택지 (쉼표로 구분)</label>
+                         <input
+                            type="text"
+                            name="options"
+                            placeholder="예: 오답1, 오답2, 오답3"
+                            value={formData.options}
+                            onChange={handleChange}
+                            className="w-full p-2 border rounded mt-2"
+                        />
                     </div>
                 )}
                 <div>
@@ -192,15 +217,16 @@ const BulkUploadModal: React.FC<{ onClose: () => void; onUpload: () => void; }> 
     const [csvData, setCsvData] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
-    const sampleCSV = `category_name,type,question_text,correct_answer,option1,option2,option3,option4\nScience,multiple_choice,"What is the chemical symbol for water?","H2O","O2","CO2","H2","NaCl"\nHistory,short_answer,"In what year did the Titanic sink?","1912",,,,`;
+    const sampleCSV = `category_name,type,question_text,correct_answer,options\nScience,multiple_choice,"What is the chemical symbol for water?","H2O","O2,CO2,H2,NaCl"\nHistory,short_answer,"In what year did the Titanic sink?","1912",`;
 
     const handleUpload = async () => {
         setIsUploading(true);
         const rows = csvData.trim().split('\n').slice(1); // Skip header
         try {
-            const questionsToInsert = [];
+            const questionsToInsert: Omit<Question, 'id' | 'created_at'>[] = [];
             for (const row of rows) {
-                const [categoryName, type, questionText, correctAnswer, ...options] = row.split(',').map(item => item.trim().replace(/"/g, ''));
+                // Warning: This is a naive CSV parser and will not handle commas within quoted fields correctly.
+                const [categoryName, type, questionText, correctAnswer, optionsStr] = row.split(',').map(item => item.trim().replace(/"/g, ''));
                 if (!categoryName || !type || !questionText || !correctAnswer) continue;
                 
                 const categoryId = await findOrCreateCategory(categoryName);
@@ -210,7 +236,7 @@ const BulkUploadModal: React.FC<{ onClose: () => void; onUpload: () => void; }> 
                     type: type as QuestionType,
                     question_text: questionText,
                     correct_answer: correctAnswer,
-                    options: type === 'multiple_choice' ? options.filter(Boolean) : undefined,
+                    options: type === 'multiple_choice' && optionsStr ? optionsStr.split(';').map(s => s.trim()).filter(Boolean) : undefined,
                 };
                 questionsToInsert.push(question);
             }
@@ -232,8 +258,8 @@ const BulkUploadModal: React.FC<{ onClose: () => void; onUpload: () => void; }> 
         <Modal isOpen={true} onClose={onClose} title="질문 대량 업로드">
             <div className="space-y-4">
                 <p>아래에 CSV 형식으로 데이터를 붙여넣으세요. 첫 줄은 반드시 헤더여야 합니다.</p>
-                <p className="font-mono text-sm bg-slate-100 p-2 rounded">category_name,type,question_text,correct_answer,option1,option2,option3,option4</p>
-                <p className="text-xs text-slate-500">참고: `type`은 `short_answer` 또는 `multiple_choice`여야 합니다. `short_answer`의 경우 선택지 열을 비워두세요.</p>
+                <p className="font-mono text-sm bg-slate-100 p-2 rounded">category_name,type,question_text,correct_answer,options</p>
+                <p className="text-xs text-slate-500">참고: `type`은 `short_answer` 또는 `multiple_choice`여야 합니다. 객관식 문제의 경우, `options` 열에 오답들을 세미콜론(;)으로 구분하여 입력하세요. `short_answer`의 경우 `options` 열을 비워두세요.</p>
                 <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(sampleCSV)}`} download="sample.csv" className="text-primary-600 hover:underline">샘플 CSV 다운로드</a>
                 <textarea value={csvData} onChange={(e) => setCsvData(e.target.value)} rows={10} className="w-full p-2 border rounded font-mono text-sm" placeholder="이곳에 CSV 데이터를 붙여넣으세요..."></textarea>
                 <Button onClick={handleUpload} disabled={isUploading}>{isUploading ? '업로드 중...' : '업로드'}</Button>

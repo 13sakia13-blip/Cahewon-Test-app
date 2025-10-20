@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { Question } from '../types';
 import { getIncorrectlyAnsweredQuestions } from '../services/api';
 import Button from './ui/Button';
 import Spinner from './ui/Spinner';
 import Card from './ui/Card';
+import { shuffleArray } from '../utils/helpers';
 
 interface IncorrectNotesProps {
   onStartQuiz: (questions: Question[]) => void;
@@ -41,7 +41,7 @@ const IncorrectNotes: React.FC<IncorrectNotesProps> = ({ onStartQuiz }) => {
         {questions.length > 0 ? (
           <>
             <p className="text-center text-slate-600 mb-6">복습할 문제가 {questions.length}개 있습니다. 다시 풀어볼까요?</p>
-            <Button onClick={() => onStartQuiz(questions)} className="w-full">
+            <Button onClick={() => onStartQuiz(shuffleArray(questions))} className="w-full">
               복습 세션 시작
             </Button>
           </>
